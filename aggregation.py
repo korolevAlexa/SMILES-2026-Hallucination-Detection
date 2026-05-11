@@ -18,22 +18,43 @@ single entry point called from the notebook.
 from __future__ import annotations
 
 import torch
-
+MAX_SEQUENCE_LENGTH = 512
 
 def aggregate(
     hidden_states: torch.Tensor,
     attention_mask: torch.Tensor,
 ) -> torch.Tensor:
+    """Convert per-token hidden states into a single feature vector.
 
+    The representation is the average of the final real token over the last
+    four transformer layers. Two scalar length features are appended because
+    response length and truncation were informative in the training data.
+
+    Args:
+        hidden_states: Tensor of shape ``(n_layers, seq_len, hidden_dim)``.
+        attention_mask: 1-D tensor of shape ``(seq_len,)`` with 1 for real
+                        tokens and 0 for padding.
+
+    Returns:
+        A 1-D feature tensor of shape ``(hidden_dim + 2,)``.
+    """
     real_positions = attention_mask.nonzero(as_tuple=False).squeeze(-1)
-    
     last_pos = int(real_positions[-1].item())
-    last_token_layers = hidden_states[-4:, last_pos, :]
 
+    last_token_layers = hidden_states[-4:, last_pos, :]
     feature = last_token_layers.mean(dim=0)
 
-    return feature
-    # ------------------------------------------------------------------
+    n_real = float(real_positions.numel())
+    max_length = float(MAX_SEQUENCE_LENGTH)
+
+    scalar_features = torch.stack(
+        [
+            feature.new_tensor(n_real / max(max_length, 1.0)),
+            feature.new_tensor(float(n_real >= max_length)),
+        ]
+    )
+
+    return torch.cat([feature, scalar_features], dim=0)
 
 
 def extract_geometric_features(
