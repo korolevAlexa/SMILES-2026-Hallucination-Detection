@@ -1,3 +1,44 @@
+## Reproducibility
+
+The solution can be reproduced by running the original pipeline without modifying the fixed infrastructure files. The only modified files are:
+
+- `aggregation.py`
+- `probe.py`
+
+The expected environment is a Python environment with PyTorch, Transformers, NumPy, pandas, scikit-learn and tqdm installed. I used Google Colab with GPU enabled.
+
+To reproduce the results and generate both `results.json` and `predictions.csv`, run:
+
+```bash
+git clone https://github.com/korolevAlexa/SMILES-2026-Hallucination-Detection.git
+cd SMILES-2026-Hallucination-Detection
+pip install -r requirements.txt
+python solution.py
+```
+
+The script will:
+
+1. load `data/dataset.csv`;
+2. extract hidden states from `Qwen/Qwen2.5-0.5B`;
+3. aggregate hidden states using the modified `aggregation.py`;
+4. train and evaluate the probe from `probe.py`;
+5. save the evaluation summary to `results.json`;
+6. load `data/test.csv`;
+7. generate predictions and save them to `predictions.csv`.
+
+The implementation keeps the original `solution.py`, `model.py`, and `evaluate.py` unchanged. The final feature dimension should be:
+
+```text
+Feature matrix : (689, 898)
+```
+
+In my full run, the internal test metrics were approximately:
+
+```text
+Accuracy: 75.96%
+F1:       84.28%
+AUROC:    75.52%
+```
 ## Solution Report
 
 I started from the baseline pipeline. In the original `aggregation.py`, each example was represented by the hidden state of the last real token from the final transformer layer. With the original `probe.py`, this gave about:
