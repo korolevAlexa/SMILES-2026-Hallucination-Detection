@@ -121,6 +121,21 @@ I also tested PCA-based dimensionality reduction in `probe.py`. PCA followed by 
 
 Finally, I evaluated several splitting strategies: repeated holdout, label-only stratification, label-plus-response-length stratification, and k-fold splitting. The results were sensitive to the exact split, which is expected given the small dataset size. Length-aware stratification sometimes improved the average holdout result, but the improvement was not consistent. K-fold evaluation produced a more conservative estimate, around 71–72.5% AUROC. Since these alternatives did not provide a clear and stable advantage, I kept the default single stratified split in the final version.
 
+## Experiments Summary
+
+| Experiment group | Main idea | Result / observation | Decision |
+|---|---|---|---|
+| Baseline | Last real token from the final transformer layer + MLP with 256 hidden units | Internal test AUROC ≈ 73.8% | Starting point |
+| Layer aggregation | Averaged the final-token representation over the last 2, 3, 4, and 6 layers | Last 4 layers worked best, reaching ≈ 74.9% AUROC. Last 2/3/6 layers were worse | Kept average over last 4 layers |
+| High-dimensional aggregation | Concatenated several hidden-state representations or added mean pooling over tokens | Increased feature dimension too much and hurt performance; one variant dropped to ≈ 49.4% AUROC | Rejected |
+| Length-based features | Added normalized sequence length and truncation flag after EDA showed hallucinated responses are longer and more often truncated | Length-only baseline reached ≈ 0.69 AUROC; adding these features improved secondary metrics and kept the representation compact | Kept |
+| Geometric/topological features | Tried layer norms, cosine similarities, layer drift, token drift, pairwise distances, and SVD-based features | Lightweight version reached ≈ 75.0% AUROC, but heavier version dropped to ≈ 71.8% AUROC | Rejected: added noise and variance |
+| Probe regularization | Tried dropout, AdamW, weight decay, different epoch counts, class-weight variants, and hidden sizes | Standard tuning changed results only slightly; large MLPs still overfit | Replaced with smaller probe |
+| Ranking-loss probe | Added pairwise ranking loss mixed with BCE loss | Improved separation between truthful and hallucinated examples; better aligned with AUROC | Kept |
+| Small MLP probe | Reduced probe from 256 hidden units to 48 hidden units with dropout 0.10 | Cached AUROC reached ≈ 76.2%; full run reached ≈ 75.5% AUROC | Kept |
+| Alternative probe architectures | Tried Logistic Regression, residual linear + MLP, and PCA + small MLP | Logistic Regression was too weak; residual head did not help; PCA was close but not consistently better | Rejected |
+| Splitting strategies | Tried repeated holdout, label + length stratification, and k-fold splits | Results were sensitive to split; k-fold gave more conservative ≈ 71–72.5% AUROC; length-aware split was not consistently better | Kept default single stratified split |
+
 The final solution uses:
 
 - `aggregation.py`: average of the final-token representation over the last four transformer layers, plus two length features;
